@@ -1,0 +1,29 @@
+import {z} from 'zod'; import {containsForbiddenClaim} from './rules';
+export const PROMPT_VERSION='verity-prompt-v1';
+export const InvestigationSchema=z.object({
+  assessment:z.enum(['no_issue_in_records','verify_before_purchase','insufficient_evidence']),
+  summary:z.string().min(1).max(1200),
+  supported_findings:z.array(z.object({claim:z.string(),evidence_ids:z.array(z.string())})).max(8),
+  possible_explanations:z.array(z.object({explanation:z.string(),supporting_evidence_ids:z.array(z.string()),missing_evidence:z.array(z.string())})).max(6),
+  recommended_checks:z.array(z.object({action:z.string(),reason:z.string(),evidence_ids:z.array(z.string())})).max(6),
+  limitations:z.array(z.string()).max(6),
+});
+export type Investigation=z.infer<typeof InvestigationSchema>;
+export function validateInvestigation(raw:unknown, retrievedIds:Set<string>):{ok:true;data:Investigation}|{ok:false;error:string}{
+  const p=InvestigationSchema.safeParse(raw); if(!p.success) return {ok:false,error:'schema: '+p.error.issues.map(i=>i.path.join('.')).join(',')};
+  const all=[...p.data.supported_findings.flatMap(f=>f.evidence_ids),...p.data.possible_explanations.flatMap(f=>f.supporting_evidence_ids),...p.data.recommended_checks.flatMap(f=>f.evidence_ids)];
+  const bad=all.filter(id=>!retrievedIds.has(id)); if(bad.length) return {ok:false,error:'fabricated citations: '+bad.join(',')};
+  const text=JSON.stringify(p.data); if(containsForbiddenClaim(text)) return {ok:false,error:'forbidden authenticity claim'};
+  return {ok:true,data:p.data};
+}
+/** Deterministic simulated investigator, labelled Simulated AI. Reconciles sale vs return evidence. */
+export function simulatedInvestigate(ctx:{findings:{code:string}[]; events:{id:string;type:string}[]; intent:string}):Investigation{
+  const ids=(t:string)=>ctx.events.filter(e=>e.type===t).map(e=>e.id);
+  const sale=ids('sell'), ret=ids('return'), restock=ids('restock');
+  const has=(c:string)=>ctx.findings.some(f=>f.code===c);
+  if(has('unknown_code')) return {assessment:'insufficient_evidence',summary:'No registry record was retrieved for this code, so there is no recorded journey to check.',supported_findings:[],possible_explanations:[{explanation:'The maker may not participate in Verity, or the code may be mistyped or copied.',supporting_evidence_ids:[],missing_evidence:['A manufacturer registry record for this code']}],recommended_checks:[{action:'Check the code for typing errors and ask the seller where the item came from.',reason:'Without a registry record Verity cannot trace this item.',evidence_ids:[]}],limitations:['Absence of a record does not prove an item is counterfeit.']};
+  if(has('prior_sale_explained')) return {assessment:'no_issue_in_records',summary:'The earlier sale is followed by a linked authorized return and restock, which documents why the item is available again.',supported_findings:[{claim:'A sale, authorized return and restock are recorded in sequence.',evidence_ids:[...sale,...ret,...restock]}],possible_explanations:[],recommended_checks:[{action:'You may ask the retailer to confirm the return on their records.',reason:'Confirms the paper trail matches the shop record.',evidence_ids:ret}],limitations:['Records show what partners asserted; they do not certify the physical contents.']};
+  if(has('prior_sale_unresolved')) return {assessment:'verify_before_purchase',summary:'This code was already recorded as sold, with no linked return or restock retrieved to explain it being offered as new stock. That pattern is consistent with a copied label, but also with a recording error.',supported_findings:[{claim:'A prior sale is recorded with no linked return/restock.',evidence_ids:sale}],possible_explanations:[{explanation:'The label/code may have been copied onto another item.',supporting_evidence_ids:sale,missing_evidence:['Seller explanation for the prior sale']},{explanation:'The original sale may have been recorded in error or returned without being recorded.',supporting_evidence_ids:[],missing_evidence:['Return record linked to the sale']}],recommended_checks:[{action:'Ask the seller to explain the prior sale and contact the retailer named in the record before buying.',reason:'Only the recorded retailer can confirm whether the sale/return history is complete.',evidence_ids:sale}],limitations:['Two records for one code do not prove physical fraud; consumer locations are weak evidence.']};
+  if(has('incomplete_history')) return {assessment:'insufficient_evidence',summary:'A transfer is recorded without the recipient acknowledging receipt, so confirmed custody cannot be established from the records.',supported_findings:[{claim:'Transfer dispatched without matching receipt acknowledgment.',evidence_ids:ids('transfer_dispatch')}],possible_explanations:[{explanation:'Goods may be in transit or receipt may simply not have been recorded yet.',supporting_evidence_ids:ids('transfer_dispatch'),missing_evidence:['Recipient acknowledgment']}],recommended_checks:[{action:'Ask the current seller which partner dispatched the item and whether receipt was confirmed.',reason:'The missing acknowledgment is the gap to close.',evidence_ids:ids('transfer_dispatch')}],limitations:['Missing data is shown as missing; Verity does not invent provenance.']};
+  return {assessment:'no_issue_in_records',summary:'The retrieved records form an internally consistent journey with no unresolved sale or missing acknowledgment.',supported_findings:ctx.events.length?[{claim:'Recorded journey is internally consistent.',evidence_ids:ctx.events.map(e=>e.id).slice(0,4)}]:[],possible_explanations:[],recommended_checks:[],limitations:['A consistent record does not certify the physical item; codes can be copied.']};
+}

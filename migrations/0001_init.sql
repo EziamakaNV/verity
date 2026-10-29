@@ -1,0 +1,11 @@
+CREATE TABLE demo_sessions(id TEXT PRIMARY KEY, created_at TEXT NOT NULL, expires_at TEXT NOT NULL);
+CREATE TABLE actors(id TEXT PRIMARY KEY, session_id TEXT NOT NULL, name TEXT NOT NULL, role TEXT NOT NULL, org TEXT NOT NULL);
+CREATE TABLE products(id TEXT PRIMARY KEY, session_id TEXT NOT NULL, name TEXT NOT NULL, brand TEXT NOT NULL);
+CREATE TABLE batches(id TEXT PRIMARY KEY, session_id TEXT NOT NULL, product_id TEXT NOT NULL, code TEXT NOT NULL, made_in TEXT NOT NULL);
+CREATE TABLE units(id TEXT PRIMARY KEY, session_id TEXT NOT NULL, batch_id TEXT NOT NULL, token TEXT NOT NULL UNIQUE, state TEXT NOT NULL, custodian_id TEXT, evidence_version INTEGER NOT NULL DEFAULT 1, scenario TEXT, idempotency_key TEXT);
+CREATE TABLE events(id TEXT PRIMARY KEY, session_id TEXT NOT NULL, unit_id TEXT NOT NULL, actor_id TEXT NOT NULL, type TEXT NOT NULL, server_time TEXT NOT NULL, effective_time TEXT NOT NULL, note TEXT, provenance TEXT NOT NULL DEFAULT 'partner', linked_event_id TEXT, from_state TEXT, to_state TEXT, idempotency_key TEXT);
+CREATE UNIQUE INDEX idx_events_idem ON events(session_id, idempotency_key) WHERE idempotency_key IS NOT NULL;
+CREATE TABLE reports(id TEXT PRIMARY KEY, session_id TEXT NOT NULL, unit_id TEXT, token TEXT NOT NULL, intent TEXT NOT NULL, location TEXT, text TEXT NOT NULL, server_time TEXT NOT NULL, provenance TEXT NOT NULL DEFAULT 'consumer');
+CREATE TABLE investigations(id TEXT PRIMARY KEY, session_id TEXT NOT NULL, unit_id TEXT NOT NULL, fingerprint TEXT NOT NULL, intent TEXT NOT NULL, model TEXT NOT NULL, prompt_version TEXT NOT NULL, result_json TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE UNIQUE INDEX idx_inv_fp ON investigations(session_id, unit_id, fingerprint, intent, model, prompt_version);
+CREATE TABLE rate_limits(session_id TEXT NOT NULL, bucket TEXT NOT NULL, window_start INTEGER NOT NULL, count INTEGER NOT NULL, PRIMARY KEY(session_id,bucket,window_start));

@@ -1,0 +1,16 @@
+import {describe,it,expect} from 'vitest'; import {evaluate} from '../src/shared/rules'; import {canTransition} from '../src/shared/types'; import {validateInvestigation,simulatedInvestigate} from '../src/shared/investigator';
+const U=(state:any)=>({id:'u1',token:'T',batch_id:'b',product_name:'P',brand:'B',batch_code:'C',state,custodian_id:'a',evidence_version:1,scenario:null});
+const E=(type:string,id=type)=>({id,unit_id:'u1',actor_id:'a',type,server_time:'2026-01-01T00:00:00Z',effective_time:'2026-01-01T00:00:00Z',note:null,provenance:'partner',linked_event_id:null,from_state:null,to_state:null});
+describe('rules',()=>{ it('unknown not counterfeit',()=>{expect(evaluate(null,[],'buying',1)[0].code).toBe('unknown_code')});
+ it('normal no issues never genuine claim',()=>{const f=evaluate(U('at_retailer'),[E('dispatch')], 'buying',1); expect(f[0].code).toBe('no_issues'); expect(JSON.stringify(f)).not.toMatch(/100% genuine|safe to use/i)});
+ it('prior sale unresolved buying',()=>{expect(evaluate(U('sold'),[E('sell')], 'buying',1).some(f=>f.code==='prior_sale_unresolved')).toBe(true)});
+ it('return explains sale',()=>{expect(evaluate(U('at_retailer'),[E('sell','1'),E('return','2'),E('restock','3')], 'buying',1).some(f=>f.code==='prior_sale_explained')).toBe(true)});
+ it('owner recheck not fraud',()=>{expect(evaluate(U('sold'),[E('sell')], 'own',3).some(f=>f.code==='owner_recheck')).toBe(true)});
+ it('incomplete ack',()=>{expect(evaluate(U('in_transit'),[E('transfer_dispatch')], 'buying',1).some(f=>f.code==='incomplete_history')).toBe(true)});});
+describe('state machine',()=>{ it('only retailer sells from at_retailer',()=>{expect(canTransition('at_retailer','sell','retailer')).toBe(true); expect(canTransition('at_retailer','sell','manufacturer')).toBe(false); expect(canTransition('sold','sell','retailer')).toBe(false); expect(canTransition('sold','return','retailer')).toBe(true); expect(canTransition('registered','sell','retailer')).toBe(false)});});
+describe('investigator validation',()=>{ const base=simulatedInvestigate({findings:[{code:'prior_sale_unresolved'}],events:[E('sell','ev1')],intent:'buying'});
+ it('accepts grounded',()=>{expect(validateInvestigation(base,new Set(['ev1'])).ok).toBe(true)});
+ it('rejects fabricated citation',()=>{const bad={...base,supported_findings:[{claim:'x',evidence_ids:['fake']}]}; expect(validateInvestigation(bad,new Set(['ev1'])).ok).toBe(false)});
+ it('rejects forbidden claim',()=>{const bad={...base,summary:'This is 100% genuine'}; expect(validateInvestigation(bad,new Set(['ev1'])).ok).toBe(false)});
+ it('paired: return changes assessment',()=>{const withRet=simulatedInvestigate({findings:[{code:'prior_sale_explained'}],events:[E('sell','1'),E('return','2'),E('restock','3')],intent:'buying'}); expect(withRet.assessment).toBe('no_issue_in_records'); expect(base.assessment).toBe('verify_before_purchase')});
+ it('hostile report text does not change simulated rules',()=>{const r=simulatedInvestigate({findings:[{code:'prior_sale_unresolved'}],events:[E('sell','ev1')],intent:'buying'}); expect(r.assessment).toBe('verify_before_purchase')});});

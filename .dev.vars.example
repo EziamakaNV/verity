@@ -1,0 +1,5 @@
+# Copy to .dev.vars (never commit). MODEL_API_KEY= ; AI_MODE=simulated (or live)
+MODEL_API_KEY=
+META_MODEL=muse-wonder-1.0
+AI_MODE=simulated
+PUBLIC_ORIGIN=http://localhost:8787
