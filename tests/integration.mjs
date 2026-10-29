@@ -46,4 +46,27 @@ const x = await call2('/api/partner/action', { actorId: lag.id, unitId: U.normal
 check('cross-session write through foreign ids fails', x.s === 403 || x.s === 404, `${x.s}`);
 // 10 malformed code rejected
 check('malformed code 400', (await call('/api/scan', { token: 'hello world' })).s === 400);
+// 11 wrong-actor return/restock (fresh session): Lagos sells, Abuja must not return, Lagos returns, Abuja must not restock
+const c3 = await sess(); const s3 = (await c3('/api/state')).j; const n3 = s3.units.find(u => u.scenario === 'normal'); const lag3 = s3.actors.find(a => a.org.startsWith('Lagos Mart')); const abj3 = s3.actors.find(a => a.org.startsWith('Abuja'));
+const a3 = (actor, type, key) => c3('/api/partner/action', { actorId: actor.id, unitId: n3.id, type, idempotencyKey: key });
+check('setup sell by Lagos', (await a3(lag3, 'sell', 'w1')).s === 200);
+check('Abuja (same role, wrong retailer) cannot return Lagos sale', (await a3(abj3, 'return', 'w2')).s === 403);
+check('recorded seller Lagos can return', (await a3(lag3, 'return', 'w3')).s === 200);
+check('Abuja cannot restock Lagos return', (await a3(abj3, 'restock', 'w4')).s === 403);
+check('return holder Lagos can restock', (await a3(lag3, 'restock', 'w5')).s === 200);
+// 12 return-document comparison outcomes
+const invCopied = await call('/api/investigate', { token: U.copied.token, intent: 'buying' });
+check('wrong-item document: comparison mismatch + verify', invCopied.j.investigation?.comparison?.outcome === 'mismatch' && invCopied.j.investigation?.assessment === 'verify_before_purchase', invCopied.j.investigation?.comparison?.outcome);
+check('comparison cites document and sale', (invCopied.j.investigation?.comparison?.fields || []).some(f => f.status === 'mismatch' && f.evidence_ids.length >= 1));
+const c4 = await sess(); const s4 = (await c4('/api/state')).j; const ret4 = s4.units.find(u => u.scenario === 'returned');
+const invRet = await c4('/api/investigate', { token: ret4.token, intent: 'buying' });
+check('corroborated document: comparison corroborated, no unresolved reassurance conflict', invRet.j.investigation?.comparison?.outcome === 'corroborated', invRet.j.investigation?.comparison?.outcome);
+// 13 pasted sample URL works like browser entry; stale version rejected
+const pasted = await call('/api/scan', { token: 'https://verity.eziamakanv.workers.dev/?sample=copied', intent: 'buying' });
+check('pasted sample URL resolves copied scenario', pasted.j.unit?.scenario === 'copied');
+const stale = await call('/api/investigate', { token: U.normal.token, intent: 'own', expected_evidence_version: 9999 });
+check('stale expected version rejected before work', stale.s === 409 && stale.j.stale === true, `${stale.s}`);
+// 14 unassociated document reference does not leak (via investigation tools is internal; assert scan of owner has no copied doc)
+const ownerScan = await call('/api/scan', { token: U.owner.token, intent: 'own' });
+check('documents are scoped to their associated unit', !(ownerScan.j.documents || []).some(d => d.reference === 'RET-WRONG-441'));
 console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

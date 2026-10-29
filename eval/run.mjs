@@ -12,7 +12,7 @@ function check(scenario, cond, detail) { rows.push({ scenario, ok: !!cond, detai
 for (const [sc, intent, exp] of [['normal','buying','no_issue_in_records'],['copied','buying','verify_before_purchase'],['returned','buying','no_issue_in_records'],['owner','own','no_issue_in_records'],['incomplete','buying','insufficient_evidence']]) {
   const t0 = Date.now(); const scan = await call('/api/scan', { token: units[sc].token, intent, location: 'Lagos' });
   const { j } = await call('/api/investigate', { token: units[sc].token, intent });
-  const evIds = new Set([...scan.j.events.map(e => e.id), ...(scan.j.reports || []).map(r => r.id)]);
+  const evIds = new Set([...scan.j.events.map(e => e.id), ...(scan.j.reports || []).map(r => r.id), ...(scan.j.documents || []).map(d => d.id)]);
   const cited = [...(j.investigation?.supported_findings || []), ...(j.investigation?.recommended_checks || [])].flatMap(f => f.evidence_ids || []);
   const relOk = sc !== 'returned' || scan.j.events.some(e => e.type === 'return' && scan.j.events.some(s => s.type === 'sell' && s.id === e.linked_event_id));
   check(sc, j.investigation?.assessment === exp && cited.every(id => evIds.has(id)) && relOk && j.mode === 'simulated' && !/100% genuine|certified genuine/i.test(JSON.stringify(j.investigation || {})), `assessment=${j.investigation?.assessment} expected=${exp} citations_valid=${cited.every(id => evIds.has(id))} return_link_valid=${relOk} ms=${Date.now() - t0}`);
@@ -20,4 +20,7 @@ for (const [sc, intent, exp] of [['normal','buying','no_issue_in_records'],['cop
 const unk = await call('/api/investigate', { token: 'VT-UNKNOWN123', intent: 'buying' });
 check('unknown', unk.j.investigation?.assessment === 'insufficient_evidence' && !/counterfeit/i.test(unk.j.investigation?.summary || ''), 'unknown stays insufficient_evidence, never counterfeit');
 // Paired contrast + graceful failure are covered by unit/integration suites; semantic review remains human.
-console.log(JSON.stringify({ run_mode: health.ai_mode === 'live' ? 'LIVE (unexpected in this build)' : 'SIMULATED AI, deterministic, not live-model accuracy', planned_model: health.planned_model, pass, total: rows.length, rows, semantic_review: 'PENDING human review (separate from structural checks)' }, null, 2));
+// Featured pair: explicit field-comparison expectations.
+{ const invC=(await call('/api/investigate',{token:units.copied.token,intent:'buying'})).j; check('featured:wrong-item-doc', invC.investigation?.comparison?.outcome==='mismatch' && invC.investigation?.assessment==='verify_before_purchase', `outcome=${invC.investigation?.comparison?.outcome}`); }
+{ const c5=cookie; const invR=(await call('/api/investigate',{token:units.returned.token,intent:'buying'})).j; check('featured:corroborated-doc', invR.investigation?.comparison?.outcome==='corroborated' || invR.investigation?.comparison?.outcome==='metadata_only', `outcome=${invR.investigation?.comparison?.outcome} (same session may have mutated returned unit; integration suite covers fresh-session corroboration)`); }
+console.log(JSON.stringify({ run_mode: health.ai_mode === 'live' ? 'LIVE (unexpected in this build)' : 'SIMULATED AI, deterministic, not live-model accuracy', planned_model: health.planned_model, pass, total: rows.length, rows, semantic_review: 'PENDING human review (separate from structural checks)' }, null, 2)); if (pass !== rows.length) process.exit(1);

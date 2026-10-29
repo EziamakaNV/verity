@@ -11,3 +11,11 @@ jobs:
       - run: npx tsc -b
       - run: npm test
       - run: npm run build
+      - name: Local D1 integration (isolated local DB)
+        run: |
+          npx wrangler d1 migrations apply DB --local
+          (npx wrangler dev --port 8787 --local --ip 127.0.0.1 > /tmp/wrangler.log 2>&1 &)
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8787/api/health && break || sleep 2; done
+          node tests/integration.mjs
+          BASE=http://127.0.0.1:8787 node eval/run.mjs
+          pkill -f "wrangler dev" || true
