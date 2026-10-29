@@ -7,3 +7,9 @@ Target ~3:00 (guide does not confirm strict max vs exact — verify final form).
 - 2:15–2:40 Engineering: partner console sale/return with role/custodian rejection, isolated sessions, developer panel (model, tools, latency, prompt version).
 - 2:40–3:00 Impact & limits: who benefits, manufacturer participation as future dependency, try-it URL, honest limits (records ≠ physical proof).
 Checklist: record the actual UI and a real model execution (label Simulated if no key); test camera/deep link on deployed HTTPS; keep repo public link + live URL ready; no secrets/personal data on screen.
+
+## Version A: Rehearsal now (openly simulated)
+Same timings as below, but say on camera: "The investigator you are seeing is our deterministic simulation running on the real records and tool interface. The live Meta model is wired behind the same boundary and will be shown in the final recording." Show the "Simulated AI, development mode" pill. Never present this as a live model call.
+
+## Version B: Final video (only after live activation is verified)
+Replace the simulation disclosure with the verified live execution: show the developer panel with live mode, measured latency and tool calls, and results from the paired evaluation recorded in eval output. If live results differ from simulation, script to the live behavior, not the rehearsal.

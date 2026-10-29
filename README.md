@@ -5,7 +5,7 @@ Verity is a product-verification demo for Nigerian consumers, built for the Meta
 > Persistent badge in-app: **Demo: simulated partner records.** All brands, retailers, people and prices are fictional. No affiliation with NAFDAC or any real brand/retailer.
 
 ## Live demo
-**https://verity.eziamakanv.workers.dev** — deployed 2026-10-29 (Worker `verity`, D1 `verity-db`), smoke-tested end-to-end (demo start, scan, investigation, partner sale, session isolation, SPA deep links). AI mode there is currently Simulated until `MODEL_API_KEY` is set as a Worker secret with `AI_MODE=live`.
+**https://verity.eziamakanv.workers.dev** — deployed 2026-10-29 (Worker `verity`, D1 `verity-db`), smoke-tested end-to-end (demo start, scan, investigation, partner sale, session isolation, SPA deep links). AI mode is **Simulated AI, development mode** by design in this build. `muse-wonder-1.0` is the planned live model, listed separately and not used yet. See docs/ACTIVATION.md for the future switch; live mode without a key returns explicit unavailability and never silently downgrades.
 
 ## Run it locally
 ```bash
@@ -47,3 +47,9 @@ One Cloudflare Worker (Hono) serves the built React SPA (Workers Static Assets, 
 
 ## Known limitations
 Simulated partner access is not real manufacturer authentication; records show who *asserted* an event, not that it is true in the real world. Missing acknowledgment = incomplete history, not an accusation. No payments, blockchain, or reporting to authorities. Live-provider numbers must be measured, not promised.
+
+## Sample links, snapshots and trust model
+`/?sample=copied` (also returned/normal/owner/incomplete) opens that fictional scenario inside the visitor's OWN isolated session, so a phone and a laptop see the same story without sharing write access. A QR printed for a specific unit in the Partner console only resolves inside the session that created it, and says so. Lifecycle truth comes only from validated, linked partner events (dispatch/receipt pairs, sale/return/restock chains); consumer reports and seller claims are unverified evidence shown beside them. Cross-session reads/writes through foreign IDs fail.
+
+## Adoption hypothesis (untested)
+A plausible first deployment is one participating manufacturer onboarding a small network of its retailers, so journey records exist for the products consumers most often check. No interviews, usage metrics or partnerships are claimed yet.
