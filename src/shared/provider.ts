@@ -7,6 +7,8 @@ export const TOOL_DEFS:ToolDef[]=[
  {name:'get_related_reports',description:'Bounded, redacted reports for the same unit in this session'},
  {name:'get_return_document',description:'Resolve a return document by reference, scoped to the current unit claim. Args: {reference: string}'}];
 export interface ProviderOpts{transport:Transport;apiKey:string;model:string;timeoutMs?:number;system:string;user:string;execTool:(name:string,args?:any)=>Promise<{records:{id:string}[];payload:unknown}>}
+export function validateToolArgs(name:string,args:any):boolean{ if(!args||typeof args!=='object'||Array.isArray(args)) return false; const keys=Object.keys(args); if(name==='get_return_document'){ return keys.length===1 && typeof args.reference==='string' && /^[A-Za-z0-9-]{3,40}$/.test(args.reference); } return keys.length===0; }
+export function boundValue(v:any):any{ if(typeof v==='string') return v.length>1200?v.slice(0,1200)+'…[truncated]':v; if(Array.isArray(v)) return v.map(boundValue); if(v&&typeof v==='object'){ const o:any={}; for(const k of Object.keys(v)) o[k]=boundValue(v[k]); return o; } return v; }
 export interface ProviderResult{investigation:Investigation;toolsUsed:string[];retrievedIds:string[];providerRequests:number}
 /** Bounded Meta protocol: max 2 retrieval rounds, max 6 tool executions, then a separate final synthesis request (no tools offered). Mockable transport; never cached by caller on failure. */
 export async function runProvider(opts:ProviderOpts):Promise<ProviderResult>{
@@ -31,16 +33,15 @@ export async function runProvider(opts:ProviderOpts):Promise<ProviderResult>{
     const ids=new Set(); for(const tc of calls){ if(!tc?.id || ids.has(tc.id)) throw new Error('duplicate or missing tool call id'); ids.add(tc.id); }
     if(!calls.length){ return finish(msg,retrieved,toolsUsed,requests); }
     for(const tc of calls){
-      const name=tc?.function?.name; let argsOk=true; try{ if(tc?.function?.arguments) JSON.parse(tc.function.arguments); }catch{ argsOk=false; }
+      const name=tc?.function?.name; let argsOk=true; let parsedArgs:any={}; try{ parsedArgs=tc?.function?.arguments?JSON.parse(tc.function.arguments):{}; argsOk=validateToolArgs(name,parsedArgs); }catch{ argsOk=false; }
       if(executed>=6 || !TOOL_DEFS.some(t=>t.name===name) || !argsOk){
         messages.push({role:'tool',tool_call_id:tc?.id||'invalid',content:JSON.stringify({error:!argsOk?'invalid arguments':executed>=6?'tool budget exhausted':'unknown tool refused'})}); continue;
       }
       executed++; toolsUsed.push(name);
-      let tcArgs:any={}; try{ tcArgs=tc?.function?.arguments?JSON.parse(tc.function.arguments):{}; }catch{}
-      const out=await opts.execTool(name,tcArgs);
+      const out=await Promise.race([opts.execTool(name,parsedArgs), new Promise<never>((_,rej)=>setTimeout(()=>rej(new Error('tool deadline exceeded')), Math.max(1,deadline-Date.now())))]);
       // Select complete records first; citable IDs derive solely from what is actually transmitted.
-      const payload:any=JSON.parse(JSON.stringify(out.payload)); const arr:any[]=payload.records||payload.reports||(payload.document?[payload.document]:[]);
-      let content=JSON.stringify(payload); while(content.length>7000 && arr.length>1){ arr.pop(); content=JSON.stringify(payload); }
+      const payload:any=boundValue(JSON.parse(JSON.stringify(out.payload))); const arr:any[]=payload.records||payload.reports||(payload.document?[payload.document]:[]);
+      let content=JSON.stringify(payload); let omitted=0; while(content.length>7000 && arr.length>1){ arr.pop(); omitted++; content=JSON.stringify(payload); } if(omitted) payload.omitted_records=omitted;
       if(payload.records) payload.records=arr; if(payload.reports) payload.reports=arr; content=JSON.stringify(payload);
       arr.forEach((r:any)=>{ if(r?.id) retrieved.add(r.id); }); if(payload.document?.id && content.includes(payload.document.id)) retrieved.add(payload.document.id);
       messages.push({role:'tool',tool_call_id:tc.id,content});

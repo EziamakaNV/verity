@@ -55,17 +55,18 @@ check('recorded seller Lagos can return', (await a3(lag3, 'return', 'w3')).s ===
 check('Abuja cannot restock Lagos return', (await a3(abj3, 'restock', 'w4')).s === 403);
 check('return holder Lagos can restock', (await a3(lag3, 'restock', 'w5')).s === 200);
 // 12 return-document comparison outcomes
-const invCopied = await call('/api/investigate', { token: U.copied.token, intent: 'buying' });
+const scC = await call('/api/scan', { token: U.copied.token, intent: 'buying' }); const invCopied = await call('/api/investigate', { token: U.copied.token, intent: 'buying', snapshot: scC.j.request.snapshot });
 check('wrong-item document: comparison mismatch + verify', invCopied.j.investigation?.comparison?.outcome === 'mismatch' && invCopied.j.investigation?.assessment === 'verify_before_purchase', invCopied.j.investigation?.comparison?.outcome);
 check('comparison cites document and sale', (invCopied.j.investigation?.comparison?.fields || []).some(f => f.status === 'mismatch' && f.evidence_ids.length >= 1));
 const c4 = await sess(); const s4 = (await c4('/api/state')).j; const ret4 = s4.units.find(u => u.scenario === 'returned');
-const invRet = await c4('/api/investigate', { token: ret4.token, intent: 'buying' });
+const scR = await c4('/api/scan', { token: ret4.token, intent: 'buying' }); const invRet = await c4('/api/investigate', { token: ret4.token, intent: 'buying', snapshot: scR.j.request.snapshot });
 check('corroborated document: comparison corroborated, no unresolved reassurance conflict', invRet.j.investigation?.comparison?.outcome === 'corroborated', invRet.j.investigation?.comparison?.outcome);
 // 13 pasted sample URL works like browser entry; stale version rejected
 const pasted = await call('/api/scan', { token: 'https://verity.eziamakanv.workers.dev/?sample=copied', intent: 'buying' });
 check('pasted sample URL resolves copied scenario', pasted.j.unit?.scenario === 'copied');
-const stale = await call('/api/investigate', { token: U.normal.token, intent: 'own', expected_evidence_version: 9999 });
-check('stale expected version rejected before work', stale.s === 409 && stale.j.stale === true, `${stale.s}`);
+const stale = await call('/api/investigate', { token: U.normal.token, intent: 'own', snapshot: 'stale-snapshot' });
+check('stale snapshot rejected before work', stale.s === 409 && stale.j.stale === true, `${stale.s}`);
+check('missing snapshot is explicit client error', (await call('/api/investigate', { token: U.normal.token, intent: 'own' })).s === 400);
 // 14 unassociated document reference does not leak (via investigation tools is internal; assert scan of owner has no copied doc)
 const ownerScan = await call('/api/scan', { token: U.owner.token, intent: 'own' });
 check('documents are scoped to their associated unit', !(ownerScan.j.documents || []).some(d => d.reference === 'RET-WRONG-441'));

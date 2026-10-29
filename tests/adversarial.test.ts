@@ -11,7 +11,7 @@ it('provider deadline covers a stalled response body', async () => {
 });
 it('citation to a record cut from the transmitted payload is rejected', async () => {
   let calls = 0;
-  const work = runProvider({ apiKey: 'mock', model: 'mock', system: 's', user: 'u', transport: async () => { calls++; const msg = calls === 1 ? { tool_calls: [{ id: 't', function: { name: 'get_unit_history', arguments: '{}' } }] } : { content: answer(['hidden']) }; return { ok: true, status: 200, text: async () => JSON.stringify({ choices: [{ message: msg }] }) }; }, execTool: async () => ({ records: [{ id: 'keep' }, { id: 'hidden' }], payload: { records: [{ id: 'keep', note: 'x'.repeat(7100) }, { id: 'hidden' }] } }) });
+  const work = runProvider({ apiKey: 'mock', model: 'mock', system: 's', user: 'u', transport: async () => { calls++; const msg = calls === 1 ? { tool_calls: [{ id: 't', function: { name: 'get_unit_history', arguments: '{}' } }] } : { content: answer(['hidden']) }; return { ok: true, status: 200, text: async () => JSON.stringify({ choices: [{ message: msg }] }) }; }, execTool: async () => ({ records: [{ id: 'keep' }, { id: 'hidden' }], payload: { records: [...Array.from({ length: 9 }, (_, i) => ({ id: 'r' + i, note: 'x'.repeat(15000) })), { id: 'hidden', note: 'x'.repeat(15000) }] } }) });
   await expect(work).rejects.toThrow(/fabricated/);
 });
 it('competing sales sharing one pre-read version produce exactly one event (SQLite scheduling harness)', async () => {
