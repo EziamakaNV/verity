@@ -5,9 +5,10 @@ export const TOOL_DEFS:ToolDef[]=[
  {name:'get_unit_history',description:'Lifecycle events and observations for the current unit'},
  {name:'get_linked_records',description:'Relevant sale, return and handoff records reachable from the current unit'},
  {name:'get_related_reports',description:'Bounded, redacted reports for the same unit in this session'},
- {name:'get_return_document',description:'Resolve a return document by reference, scoped to the current unit claim. Args: {reference: string}'}];
+ {name:'get_return_document',description:'Resolve a return document by reference, scoped to the current unit claim. Args: {reference: string}'},
+ {name:'get_claimed_documents',description:'List return-document references explicitly associated with the current unit claim (discovery step before get_return_document)'}];
 export interface ProviderOpts{transport:Transport;apiKey:string;model:string;timeoutMs?:number;system:string;user:string;execTool:(name:string,args?:any)=>Promise<{records:{id:string}[];payload:unknown}>}
-export function validateToolArgs(name:string,args:any):boolean{ if(!args||typeof args!=='object'||Array.isArray(args)) return false; const keys=Object.keys(args); if(name==='get_return_document'){ return keys.length===1 && typeof args.reference==='string' && /^[A-Za-z0-9-]{3,40}$/.test(args.reference); } return keys.length===0; }
+export function validateToolArgs(name:string,args:any):boolean{ if(!args||typeof args!=='object'||Array.isArray(args)) return false; const keys=Object.keys(args); if(name==='get_claimed_documents'){ return keys.length===0; } if(name==='get_return_document'){ return keys.length===1 && typeof args.reference==='string' && /^[A-Za-z0-9-]{3,40}$/.test(args.reference); } return keys.length===0; }
 export function boundValue(v:any):any{ if(typeof v==='string') return v.length>1200?v.slice(0,1200)+'…[truncated]':v; if(Array.isArray(v)) return v.map(boundValue); if(v&&typeof v==='object'){ const o:any={}; for(const k of Object.keys(v)) o[k]=boundValue(v[k]); return o; } return v; }
 export interface ProviderResult{investigation:Investigation;toolsUsed:string[];retrievedIds:string[];providerRequests:number}
 /** Bounded Meta protocol: max 2 retrieval rounds, max 6 tool executions, then a separate final synthesis request (no tools offered). Mockable transport; never cached by caller on failure. */
@@ -42,6 +43,8 @@ export async function runProvider(opts:ProviderOpts):Promise<ProviderResult>{
       // Select complete records first; citable IDs derive solely from what is actually transmitted.
       const payload:any=boundValue(JSON.parse(JSON.stringify(out.payload))); const arr:any[]=payload.records||payload.reports||(payload.document?[payload.document]:[]);
       let content=JSON.stringify(payload); let omitted=0; while(content.length>7000 && arr.length>1){ arr.pop(); omitted++; content=JSON.stringify(payload); } if(omitted) payload.omitted_records=omitted;
+      // Whole-record bound: shrink the longest string fields until the serialized tool content fits.
+      let guard=0; while(content.length>7000 && guard++<60){ let best:{o:any,k:string}|null=null; const walk=(o:any)=>{ if(!o||typeof o!=='object')return; for(const k of Object.keys(o)){ const v=o[k]; if(typeof v==='string'&&v.length>80&&(!best||v.length>(best.o[best.k] as string).length)) best={o,k}; else walk(v); } }; walk(payload); if(!best) break; const b=best as {o:any,k:string}; b.o[b.k]=(b.o[b.k] as string).slice(0,Math.max(80,Math.floor((b.o[b.k] as string).length/2)))+'…[truncated]'; payload.truncated_fields=(payload.truncated_fields||0)+1; content=JSON.stringify(payload); }
       if(payload.records) payload.records=arr; if(payload.reports) payload.reports=arr; content=JSON.stringify(payload);
       arr.forEach((r:any)=>{ if(r?.id) retrieved.add(r.id); }); if(payload.document?.id && content.includes(payload.document.id)) retrieved.add(payload.document.id);
       messages.push({role:'tool',tool_call_id:tc.id,content});
@@ -59,4 +62,4 @@ function finish(msg:any,retrieved:Set<string>,toolsUsed:string[],requests:number
   if(!v.ok) throw new Error(v.error);
   return {investigation:v.data,toolsUsed,retrievedIds:[...retrieved],providerRequests:requests};
 }
-export const SIM_VERSION='sim-v2';
+export const SIM_VERSION='sim-v3';
