@@ -28,3 +28,17 @@ export function simulatedInvestigate(ctx:{findings:{code:string}[]; events:{id:s
   if(has('incomplete_history')) return {assessment:'insufficient_evidence',summary:'A transfer is recorded without the recipient acknowledging receipt, so confirmed custody cannot be established from the records.',supported_findings:[{claim:'Transfer dispatched without matching receipt acknowledgment.',evidence_ids:ids('transfer_dispatch')}],possible_explanations:[{explanation:'Goods may be in transit or receipt may simply not have been recorded yet.',supporting_evidence_ids:ids('transfer_dispatch'),missing_evidence:['Recipient acknowledgment']}],recommended_checks:[{action:'Ask the current seller which partner dispatched the item and whether receipt was confirmed.',reason:'The missing acknowledgment is the gap to close.',evidence_ids:ids('transfer_dispatch')}],limitations:['Missing data is shown as missing; Verity does not invent provenance.']};
   return {assessment:'no_issue_in_records',summary:'The retrieved records form an internally consistent journey with no unresolved sale or missing acknowledgment.',supported_findings:ctx.events.length?[{claim:'Recorded journey is internally consistent.',evidence_ids:ctx.events.map(e=>e.id).slice(0,4)}]:[],possible_explanations:[],recommended_checks:[],limitations:['A consistent record does not certify the physical item; codes can be copied.']};
 }
+/** One lifecycle+document verdict policy, applied before serialization for every outcome. */
+export function applyVerdictPolicy(inv: Investigation, findings: { code: string }[], comparison: any, intent: string, hasDocument: boolean): Investigation {
+  if (intent !== 'buying' || !hasDocument || !comparison) return inv;
+  if (comparison.outcome === 'mismatch') {
+    if (inv.assessment === 'verify_before_purchase') return inv;
+    const explained = findings.some(f => f.code === 'prior_sale_explained');
+    return { ...inv, assessment: 'verify_before_purchase', summary: explained ? 'An authorized return and restock linked to this sale are recorded, so the recorded lifecycle itself is explained. The supplied document, however, does not match this unit and sale, so it cannot be relied on. Ask for the correct document or retailer confirmation for this exact item.' : inv.summary };
+  }
+  if ((comparison.outcome === 'incomplete' || comparison.outcome === 'metadata_only' || comparison.complete === false) && inv.assessment === 'no_issue_in_records') {
+    const unknown = (comparison.fields || []).filter((f: any) => f.status === 'unknown').map((f: any) => f.field).join(', ') || 'some document fields';
+    return { ...inv, assessment: 'insufficient_evidence', summary: inv.summary + ' The supplied return document cannot fully corroborate the return yet: ' + unknown + ' could not be established from the evidence. The recorded lifecycle above still stands; ask the retailer for a complete return record for this exact unit and sale, with its issuer and dates confirmed.', recommended_checks: [...inv.recommended_checks, { action: 'Ask the retailer to confirm the missing document details for this exact unit and sale.', reason: 'Not yet established: ' + unknown + '.', evidence_ids: (comparison.fields || []).flatMap((f: any) => f.evidence_ids || []).slice(0, 3) }] };
+  }
+  return inv;
+}

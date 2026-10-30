@@ -41,11 +41,11 @@ export async function runProvider(opts:ProviderOpts):Promise<ProviderResult>{
       executed++; toolsUsed.push(name);
       const out=await Promise.race([opts.execTool(name,parsedArgs), new Promise<never>((_,rej)=>setTimeout(()=>rej(new Error('tool deadline exceeded')), Math.max(1,deadline-Date.now())))]);
       // Select complete records first; citable IDs derive solely from what is actually transmitted.
-      const payload:any=boundValue(JSON.parse(JSON.stringify(out.payload))); const arr:any[]=payload.records||payload.reports||(payload.document?[payload.document]:[]);
+      const payload:any=boundValue(JSON.parse(JSON.stringify(out.payload))); const arr:any[]=payload.records||payload.reports||payload.claimed_documents||(payload.document?[payload.document]:[]);
       let content=JSON.stringify(payload); let omitted=0; while(content.length>7000 && arr.length>1){ arr.pop(); omitted++; content=JSON.stringify(payload); } if(omitted) payload.omitted_records=omitted;
       // Whole-record bound: shrink the longest string fields until the serialized tool content fits.
       let guard=0; while(content.length>7000 && guard++<60){ let best:{o:any,k:string}|null=null; const walk=(o:any)=>{ if(!o||typeof o!=='object')return; for(const k of Object.keys(o)){ const v=o[k]; if(typeof v==='string'&&v.length>80&&(!best||v.length>(best.o[best.k] as string).length)) best={o,k}; else walk(v); } }; walk(payload); if(!best) break; const b=best as {o:any,k:string}; b.o[b.k]=(b.o[b.k] as string).slice(0,Math.max(80,Math.floor((b.o[b.k] as string).length/2)))+'…[truncated]'; payload.truncated_fields=(payload.truncated_fields||0)+1; content=JSON.stringify(payload); }
-      if(payload.records) payload.records=arr; if(payload.reports) payload.reports=arr; content=JSON.stringify(payload);
+      if(payload.records) payload.records=arr; if(payload.reports) payload.reports=arr; if(payload.claimed_documents) payload.claimed_documents=arr; content=JSON.stringify(payload);
       arr.forEach((r:any)=>{ if(r?.id) retrieved.add(r.id); }); if(payload.document?.id && content.includes(payload.document.id)) retrieved.add(payload.document.id);
       messages.push({role:'tool',tool_call_id:tc.id,content});
     }

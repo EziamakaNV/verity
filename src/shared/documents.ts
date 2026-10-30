@@ -47,4 +47,4 @@ export function compareDocument(doc:ReturnDocument|null, unit:{token:string}|nul
   const outcome:Comparison['outcome']=hasMismatch?'mismatch':allMatch?'corroborated':identityMatch?'metadata_only':'incomplete';
   return {document_id:doc.id,reference:doc.reference,complete:!statuses.includes('unknown'),scope_note:scope,fields:f,outcome};
 }
-export function documentsFingerprint(docs:ReturnDocument[]){ return (docs||[]).map(d=>`${d.id}:${d.revision}:${d.reference}`).join('|')||'nodocs'; }
+export function documentsFingerprint(docs:ReturnDocument[]){ return (docs||[]).map(d=>[d.id,d.revision,d.reference,d.claimed_unit_serial,d.claimed_sale_ref,d.claimed_issuer_name,d.issuer_actor_id,d.issue_date,d.return_date,d.referenced_return_event_id,d.provenance,d.verification_status,d.note].join(':')).join('|')||'nodocs'; }
