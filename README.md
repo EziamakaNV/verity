@@ -5,7 +5,7 @@ Verity is a product-verification demo for Nigerian consumers, built for the Meta
 > Persistent badge in-app: **Demo: simulated partner records.** All brands, retailers, people and prices are fictional. No affiliation with NAFDAC or any real brand/retailer.
 
 ## Live demo
-**https://verity.eziamakanv.workers.dev** — deployed 2026-10-29 (Worker `verity`, D1 `verity-db`), smoke-tested end-to-end (demo start, scan, investigation, partner sale, session isolation, SPA deep links). AI mode is **live Meta (`muse-wonder-1.0`) for allowlisted test sessions; other visitors get an explicitly labelled simulated investigation** (see docs/ACTIVATION.md). Live mode without a key returns explicit unavailability and never silently downgrades.
+Deployed 2026-10-29 (Worker `verity`, D1 `verity-db`), smoke-tested end-to-end (demo start, scan, investigation, partner sale, session isolation, SPA deep links). AI mode is **live Meta (`muse-wonder-1.0`) for allowlisted test sessions; other visitors get an explicitly labelled simulated investigation** (see docs/ACTIVATION.md). Live mode without a key returns explicit unavailability and never silently downgrades.
 
 ## Run it locally
 ```bash
