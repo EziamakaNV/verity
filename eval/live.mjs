@@ -1,12 +1,12 @@
 // Bounded LIVE Meta evaluation. Explicit command only; never run by CI/tests.
-//   BASE=https://verity.eziamakanv.workers.dev VERITY_COOKIE='verity_session=...' node eval/live.mjs
+//   BASE=<deployed-url> VERITY_COOKIE='verity_session=...' node eval/live.mjs
 // Budget: at most 18 provider HTTP requests assumed for this run (hard cap 20
 // for the whole activation, including the paired smoke test). Each live
 // investigation costs 1-3 provider requests; the script sums the Worker's
 // reported provider_requests and stops before a case that could exceed cap.
 // Fresh responses are requested (fresh:true) so cache hits cannot masquerade
 // as new model runs. Expected conclusions are checked, never exact prose.
-const BASE = process.env.BASE || 'https://verity.eziamakanv.workers.dev';
+const BASE = process.env.BASE || 'http://127.0.0.1:8787';
 const CAP = 18;
 let cookie = process.env.VERITY_COOKIE || '';
 let spent = 0;

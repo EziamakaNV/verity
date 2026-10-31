@@ -62,7 +62,7 @@ const c4 = await sess(); const s4 = (await c4('/api/state')).j; const ret4 = s4.
 const scR = await c4('/api/scan', { token: ret4.token, intent: 'buying' }); const invRet = await c4('/api/investigate', { token: ret4.token, intent: 'buying', snapshot: scR.j.request.snapshot });
 check('corroborated document: comparison corroborated, no unresolved reassurance conflict', invRet.j.investigation?.comparison?.outcome === 'corroborated', invRet.j.investigation?.comparison?.outcome);
 // 13 pasted sample URL works like browser entry; stale version rejected
-const pasted = await call('/api/scan', { token: 'https://verity.eziamakanv.workers.dev/?sample=copied', intent: 'buying' });
+const pasted = await call('/api/scan', { token: 'https://example.com/?sample=copied', intent: 'buying' });
 check('pasted sample URL resolves copied scenario', pasted.j.unit?.scenario === 'copied');
 const stale = await call('/api/investigate', { token: U.normal.token, intent: 'own', snapshot: 'stale-snapshot' });
 check('stale snapshot rejected before work', stale.s === 409 && stale.j.stale === true, `${stale.s}`);
