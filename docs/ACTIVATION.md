@@ -1,6 +1,6 @@
 # Live-Meta activation — executed 2026-10-31 (bounded)
 
-Status: **live, restricted**. Worker `verity`, D1 `verity-db`, https://verity.eziamakanv.workers.dev
+Status: **live, restricted**. Worker `verity`, D1 `verity-db` (deployed URL withheld from docs)
 
 ## What was done
 1. `MODEL_API_KEY` installed as a Worker secret (name only verified via `wrangler secret list`; value never printed, never in frontend/`VITE_*`/vars/source).

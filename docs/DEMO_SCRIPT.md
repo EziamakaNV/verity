@@ -1,5 +1,5 @@
 # Verity — 3-minute demo script & recording checklist
-Target ~3:00. Use the actual running app at https://verity.eziamakanv.workers.dev with a fresh demo session. Rehearse the paired cases with fresh sessions; do not spend model calls on repeated takes — record the investigation once per case, and say so if waiting time is edited.
+Target ~3:00. Use the actual running deployed app with a fresh demo session. Rehearse the paired cases with fresh sessions; do not spend model calls on repeated takes — record the investigation once per case, and say so if waiting time is edited.
 
 - 0:00–0:20 The buyer's problem: "You are about to buy this BrightSmile toothpaste in a Lagos shop. The label looks perfect — but labels can be copied. This code is fictional; the records behind it are what matter." Show the pack and code.
 - 0:20–1:15 Wrong-document case: open the "Seller says it was returned" sample. Check records → the result card at the top immediately shows the deterministic finding. Press **Review evidence** and let the real Meta investigation run. Land on the decisive comparison: the seller's document claims a different unit serial and sale than the records; verdict "Check with the retailer before buying"; next step: ask for the return document linked to this exact unit and sale. Open "View seller's document" and "View sale record" from the card.
