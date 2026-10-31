@@ -1,15 +1,23 @@
 # Verity — 3-minute demo script & recording checklist
-Target ~3:00 (guide does not confirm strict max vs exact — verify final form).
-- 0:00–0:20 Problem: in Nigerian markets a copied label looks identical; a buyer needs the product's *recorded story*, not a guess.
-- 0:20–0:45 Normal scan: Demo control → scenario 1 → Check records. Consistent journey, "No issues found in available records" (never "100% genuine").
-- 0:45–1:35 Copied-code concern: scenario 2 (sold in Abuja, offered in Lagos, buying intent) → "Verification needed" → Review evidence: show the live Meta investigator retrieving linked sale records, citing evidence, listing alternative explanations and the next check.
-- 1:35–2:15 Legitimate return: scenario 3 — same prior-sale shape, but a linked authorized return + restock changes the grounded conclusion. This paired contrast is the core demo.
-- 2:15–2:40 Engineering: partner console sale/return with role/custodian rejection, isolated sessions, developer panel (model, tools, latency, prompt version).
-- 2:40–3:00 Impact & limits: who benefits, manufacturer participation as future dependency, try-it URL, honest limits (records ≠ physical proof).
-Checklist: record the actual UI and a real model execution (label Simulated if no key); test camera/deep link on deployed HTTPS; keep repo public link + live URL ready; no secrets/personal data on screen.
+Target ~3:00. Use the actual running app at https://verity.eziamakanv.workers.dev with a fresh demo session. Rehearse the paired cases with fresh sessions; do not spend model calls on repeated takes — record the investigation once per case, and say so if waiting time is edited.
 
-## Version A: Rehearsal now (openly simulated)
-Same timings as below, but say on camera: "The investigator you are seeing is our deterministic simulation running on the real records and tool interface. The live Meta model is wired behind the same boundary and will be shown in the final recording." Show the "Simulated AI, development mode" pill. Never present this as a live model call.
+- 0:00–0:20 The buyer's problem: "You are about to buy this BrightSmile toothpaste in a Lagos shop. The label looks perfect — but labels can be copied. This code is fictional; the records behind it are what matter." Show the pack and code.
+- 0:20–1:15 Wrong-document case: open the "Seller says it was returned" sample. Check records → the result card at the top immediately shows the deterministic finding. Press **Review evidence** and let the real Meta investigation run. Land on the decisive comparison: the seller's document claims a different unit serial and sale than the records; verdict "Check with the retailer before buying"; next step: ask for the return document linked to this exact unit and sale. Open "View seller's document" and "View sale record" from the card.
+- 1:15–2:05 Legitimate-return contrast: open "A return that checks out". Same prior-sale shape, different conclusion: a linked authorized return and restock explain the earlier sale, and the document matches that chain. Verdict: "The recorded return explains the earlier sale." Point out that metadata alone never did this — the linked records did.
+- 2:05–2:35 Evidence + engineering: scroll the retrieved evidence and developer panel: live mode, actual model, tools used, provider requests, latency. State the most meaningful evaluation result from `eval/live.mjs` output (executed cases only). Briefly show the partner console refusing a wrong-retailer return.
+- 2:35–3:00 Users, adoption, limits: "For Nigerian consumers checking before they pay, and for one participating manufacturer with a small retailer network to supply trustworthy records — that adoption path is a hypothesis, not yet tested." Limits: Verity never certifies the physical item; records can be incomplete; partner records in this demo are fictional/simulated. Close with the live URL and repository link.
 
-## Version B: Final video (only after live activation is verified)
-Replace the simulation disclosure with the verified live execution: show the developer panel with live mode, measured latency and tool calls, and results from the paired evaluation recorded in eval output. If live results differ from simulation, script to the live behavior, not the rehearsal.
+## Recording checklist
+- [ ] Fresh demo session; test (allowlisted) session for live investigation, restriction still on for other visitors.
+- [ ] Record the actual UI and a real model execution; never present simulation or a replay as fresh live execution. Disclose any edited waiting time.
+- [ ] Screenshots: wrong-document card, legitimate-return card, evidence dialog, developer panel (desktop + mobile widths).
+- [ ] Camera/deep link checked on deployed HTTPS; sample pack printable from Demo control.
+- [ ] No secrets, keys or personal data on screen; repo link + live URL ready.
+- [ ] If video capture is unavailable, use the screenshot set above with this script as narration; do not claim a video exists.
+
+## Screenshot set (fallback if no video)
+1. `wrong-document-desktop` — result card with mismatch rows and next step.
+2. `legitimate-return-desktop` — result card with corroborated rows.
+3. `evidence-dialog` — a cited record opened from the card.
+4. `developer-panel` — mode/model/tools/latency after a live run.
+5. `wrong-document-mobile` — same card stacked without horizontal scrolling.

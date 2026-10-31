@@ -5,5 +5,5 @@
   "compatibility_date": "2026-10-01",
   "assets": { "directory": "./dist", "binding": "ASSETS", "not_found_handling": "single-page-application" },
   "d1_databases": [{ "binding": "DB", "database_name": "verity-db", "database_id": "6bd07d0a-7f67-46e3-9420-efd4890c9a2c", "migrations_dir": "migrations" }],
-  "vars": { "PUBLIC_ORIGIN": "https://verity.eziamakanv.workers.dev", "META_MODEL": "muse-wonder-1.0", "AI_MODE": "simulated" }
+  "vars": { "PUBLIC_ORIGIN": "https://verity.eziamakanv.workers.dev", "META_MODEL": "muse-wonder-1.0", "AI_MODE": "live" }
 }

@@ -71,6 +71,8 @@ label{font-size:.9rem;font-weight:550;color:var(--ink)}
 .unit img{border:1px solid var(--line);border-radius:4px}
 .scenlist{display:grid;grid-template-columns:1fr 1fr;gap:.6rem 2rem}
 .scenrow{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.65rem 0;border-bottom:1px solid var(--line)}.scenrow>span{min-width:0}.scenrow button{flex:none}
+.decision{border-color:#c9ccd1}.decision .verdict{font-size:1.25rem;font-weight:750;color:var(--ink);margin:.4rem 0}
+.cmpwrap{overflow-x:auto}.cmp{border-collapse:collapse;width:100%;font-size:.92rem}.cmp th,.cmp td{border:1px solid var(--line);padding:.45rem .6rem;text-align:left;vertical-align:top;word-break:break-word}.cmp thead th{background:var(--wash)}
 details.dev{margin-top:1rem;border:1px dashed #c9ccd1;border-radius:var(--radius);padding:.7rem 1rem;background:var(--wash)}
 details.dev pre{overflow:auto;font-size:.8rem}
 footer.site{background:var(--ink);color:#aeb2b8;margin-top:2rem}
@@ -80,5 +82,5 @@ video{width:100%;border-radius:8px;background:#000}
 .row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
 .mt{margin-top:1rem}
 @media(max-width:1080px){.tagline{display:none}.demoflag{display:none}}
-@media(max-width:720px){.scenlist{grid-template-columns:1fr}.navrow{gap:.7rem;flex-wrap:wrap;padding:.6rem 0}nav.tabs{margin-left:0;order:3;width:100%;overflow-x:auto;scrollbar-width:none}nav.tabs::-webkit-scrollbar{display:none}.seg{display:flex;width:100%}.seg button{flex:1;padding:.55rem .4rem;font-size:.92rem}.topbar .wrap{flex-wrap:wrap;gap:.1rem}.hero .wrap{padding-top:2rem}.arcs{opacity:.45}}
+@media(max-width:720px){.cmp,.cmp thead,.cmp tbody,.cmp tr,.cmp th,.cmp td{display:block;width:100%}.cmp thead{display:none}.cmp tr{border:1px solid var(--line);margin:.5rem 0}.cmp th,.cmp td{border:0;border-bottom:1px solid var(--line)}.scenlist{grid-template-columns:1fr}.navrow{gap:.7rem;flex-wrap:wrap;padding:.6rem 0}nav.tabs{margin-left:0;order:3;width:100%;overflow-x:auto;scrollbar-width:none}nav.tabs::-webkit-scrollbar{display:none}.seg{display:flex;width:100%}.seg button{flex:1;padding:.55rem .4rem;font-size:.92rem}.topbar .wrap{flex-wrap:wrap;gap:.1rem}.hero .wrap{padding-top:2rem}.arcs{opacity:.45}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
