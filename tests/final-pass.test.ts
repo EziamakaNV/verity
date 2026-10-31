@@ -34,6 +34,19 @@ it('request identity: raw codes, sample aliases, URLs and intent are uniform', (
   expect(shouldPublish(2, 2, cur('sample:copied'), cur('VT-UNKNOWN123'))).toBe(false);
 });
 
+it('request identity: claim, location and session edits invalidate; generation guards edit-away-and-back', () => {
+  const base = { input: 'VT-ABC123', intent: 'buying', location: 'Lagos', text: 'Seller says returned', session: '0' };
+  expect(isCurrentRequest(base, { ...base })).toBe(true);
+  expect(isCurrentRequest(base, { ...base, text: 'Seller says something else' })).toBe(false);
+  expect(isCurrentRequest(base, { ...base, location: 'Abuja' })).toBe(false);
+  expect(isCurrentRequest(base, { ...base, location: ' Lagos ' })).toBe(true);
+  expect(isCurrentRequest(base, { ...base, session: '1' })).toBe(false);
+  // Edited away and back before the old response arrives: identity matches
+  // again, but the bumped generation still refuses publication.
+  expect(shouldPublish(3, 5, base, { ...base })).toBe(false);
+  expect(shouldPublish(5, 5, base, { ...base, text: 'edited' })).toBe(false);
+});
+
 it('cache hit: claim-text mutation without unit version change is stale (409), leases cleaned', async () => {
   const f = await fixture(); try {
     const u = f.unit('returned'); const scan = await f.call('/api/scan', { token: u.token, intent: 'buying' });
@@ -85,6 +98,32 @@ it('provider accepts array-shaped message content parts', async () => {
   const transport = async () => ({ ok: true, status: 200, text: async () => JSON.stringify({ choices: [{ message: { content: [{ type: 'text', text: JSON.stringify(answer) }] } }] }) });
   const r = await runProvider({ transport, apiKey: 'mock', model: 'muse-wonder-1.0', system: 's', user: 'u', execTool: async () => ({ records: [], payload: { records: [] } }) });
   expect(r.investigation.assessment).toBe('verify_before_purchase');
+});
+
+it('investigate returns a sanitized trace with transmitted document reference (simulated)', async () => {
+  const f = await fixture(); try {
+    const u = f.unit('copied'); const scan = await f.call('/api/scan', { token: u.token, intent: 'buying' });
+    const r = await f.call('/api/investigate', { token: u.token, intent: 'buying', snapshot: scan.body.request.snapshot });
+    expect(r.body.trace.mode).toBe('simulated'); expect(r.body.trace.state).toBe('fresh'); expect(r.body.trace.cached).toBe(false);
+    expect(r.body.trace.steps.map((s: any) => s.tool)).toContain('get_return_document');
+    const docStep = r.body.trace.steps.find((s: any) => s.tool === 'get_return_document');
+    expect(docStep.fulfilled).toBe(true); expect(docStep.document_refs).toContain('RET-WRONG-441');
+    expect(docStep.transmitted_ids).toContain(scan.body.documents[0].id);
+    expect(r.body.trace.model_statement.length).toBeGreaterThan(0);
+    expect(r.body.trace.final_assessment).toBe('verify_before_purchase');
+    expect(JSON.stringify(r.body.trace)).not.toMatch(/MODEL_API_KEY|Bearer|verity_session/);
+  } finally { f.sqlite.close(); }
+});
+
+it('provider trace steps record ordered fulfillment and transmitted IDs after trimming', async () => {
+  const answer = JSON.stringify({ assessment: 'verify_before_purchase', summary: 'Prior sale needs verification.', supported_findings: [{ claim: 'Sale recorded', evidence_ids: ['ev1'] }], possible_explanations: [], recommended_checks: [], limitations: [] });
+  let n = 0;
+  const transport = async () => ({ ok: true, status: 200, text: async () => JSON.stringify({ model: 'muse-wonder-1.0', choices: [{ message: ++n === 1 ? { tool_calls: [{ id: '1', function: { name: 'get_return_document', arguments: '{"reference":"RET-1"}' } }, { id: '2', function: { name: 'run_sql', arguments: '{}' } }] } : { content: answer } }] }) });
+  const r = await runProvider({ transport, apiKey: 'mock', model: 'muse-wonder-1.0', system: 's', user: 'u', execTool: async () => ({ records: [{ id: 'ev1' }], payload: { document: { id: 'ev1', reference: 'RET-1' } } }) });
+  expect(r.steps).toEqual([
+    { tool: 'get_return_document', fulfilled: true, transmitted_ids: ['ev1'], document_refs: ['RET-1'] },
+    { tool: 'run_sql', fulfilled: false, transmitted_ids: [], document_refs: [] },
+  ]);
 });
 
 it('provider aggregates usage and response model when supplied', async () => {

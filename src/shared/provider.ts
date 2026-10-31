@@ -11,11 +11,12 @@ export interface ProviderOpts{transport:Transport;apiKey:string;model:string;tim
 export function validateToolArgs(name:string,args:any):boolean{ if(!args||typeof args!=='object'||Array.isArray(args)) return false; const keys=Object.keys(args); if(name==='get_claimed_documents'){ return keys.length===0; } if(name==='get_return_document'){ return keys.length===1 && typeof args.reference==='string' && /^[A-Za-z0-9-]{3,40}$/.test(args.reference); } return keys.length===0; }
 export function boundValue(v:any):any{ if(typeof v==='string') return v.length>1200?v.slice(0,1200)+'…[truncated]':v; if(Array.isArray(v)) return v.map(boundValue); if(v&&typeof v==='object'){ const o:any={}; for(const k of Object.keys(v)) o[k]=boundValue(v[k]); return o; } return v; }
 export interface ProviderUsage{prompt_tokens:number|null;completion_tokens:number|null;total_tokens:number|null;cached_tokens:number|null}
-export interface ProviderResult{investigation:Investigation;toolsUsed:string[];retrievedIds:string[];providerRequests:number;usage:ProviderUsage;responseModel:string|null}
+export interface TraceStep{tool:string;fulfilled:boolean;transmitted_ids:string[];document_refs:string[]}
+export interface ProviderResult{investigation:Investigation;toolsUsed:string[];retrievedIds:string[];providerRequests:number;usage:ProviderUsage;responseModel:string|null;steps:TraceStep[]}
 function readUsage(u:any,acc:ProviderUsage){ if(!u||typeof u!=='object') return; const n=(v:any)=>typeof v==='number'&&Number.isFinite(v)?v:null; const p=n(u.prompt_tokens??u.input_tokens), c=n(u.completion_tokens??u.output_tokens), t=n(u.total_tokens); if(p!==null) acc.prompt_tokens=(acc.prompt_tokens??0)+p; if(c!==null) acc.completion_tokens=(acc.completion_tokens??0)+c; if(t!==null) acc.total_tokens=(acc.total_tokens??0)+t; const cached=n(u.prompt_tokens_details?.cached_tokens??u.input_tokens_details?.cached_tokens??u.cached_tokens); if(cached!==null) acc.cached_tokens=(acc.cached_tokens??0)+cached; }
 /** Bounded Meta protocol: max 2 retrieval rounds, max 6 tool executions, then a separate final synthesis request (no tools offered). Mockable transport; never cached by caller on failure. */
 export async function runProvider(opts:ProviderOpts):Promise<ProviderResult>{
-  const deadline=Date.now()+(opts.timeoutMs??20000); const retrieved=new Set<string>(); const toolsUsed:string[]=[]; let requests=0, executed=0; const usage:ProviderUsage={prompt_tokens:null,completion_tokens:null,total_tokens:null,cached_tokens:null}; let responseModel:string|null=null;
+  const deadline=Date.now()+(opts.timeoutMs??20000); const retrieved=new Set<string>(); const toolsUsed:string[]=[]; const steps:TraceStep[]=[]; let requests=0, executed=0; const usage:ProviderUsage={prompt_tokens:null,completion_tokens:null,total_tokens:null,cached_tokens:null}; let responseModel:string|null=null;
   const call=async(messages:unknown[],withTools:boolean)=>{
     requests++; if(requests>4) throw new Error('provider request budget exceeded');
     const remaining=deadline-Date.now(); if(remaining<=0) throw new Error('provider deadline exceeded'); const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),remaining);
@@ -34,10 +35,11 @@ export async function runProvider(opts:ProviderOpts):Promise<ProviderResult>{
     const calls=Array.isArray(msg.tool_calls)?msg.tool_calls:[];
     if(calls.length>6) throw new Error('tool call array exceeds bound');
     const ids=new Set(); for(const tc of calls){ if(!tc?.id || ids.has(tc.id)) throw new Error('duplicate or missing tool call id'); ids.add(tc.id); }
-    if(!calls.length){ return finish(msg,retrieved,toolsUsed,requests,usage,responseModel); }
+    if(!calls.length){ return finish(msg,retrieved,toolsUsed,requests,usage,responseModel,steps); }
     for(const tc of calls){
       const name=tc?.function?.name; let argsOk=true; let parsedArgs:any={}; try{ parsedArgs=tc?.function?.arguments?JSON.parse(tc.function.arguments):{}; argsOk=validateToolArgs(name,parsedArgs); }catch{ argsOk=false; }
       if(executed>=6 || !TOOL_DEFS.some(t=>t.name===name) || !argsOk){
+        steps.push({tool:String(name||'unknown'),fulfilled:false,transmitted_ids:[],document_refs:[]});
         messages.push({role:'tool',tool_call_id:tc?.id||'invalid',content:JSON.stringify({error:!argsOk?'invalid arguments':executed>=6?'tool budget exhausted':'unknown tool refused'})}); continue;
       }
       executed++; toolsUsed.push(name);
@@ -49,20 +51,23 @@ export async function runProvider(opts:ProviderOpts):Promise<ProviderResult>{
       let guard=0; while(content.length>7000 && guard++<60){ let best:{o:any,k:string}|null=null; const walk=(o:any)=>{ if(!o||typeof o!=='object')return; for(const k of Object.keys(o)){ const v=o[k]; if(typeof v==='string'&&v.length>80&&(!best||v.length>(best.o[best.k] as string).length)) best={o,k}; else walk(v); } }; walk(payload); if(!best) break; const b=best as {o:any,k:string}; b.o[b.k]=(b.o[b.k] as string).slice(0,Math.max(80,Math.floor((b.o[b.k] as string).length/2)))+'…[truncated]'; payload.truncated_fields=(payload.truncated_fields||0)+1; content=JSON.stringify(payload); }
       if(payload.records) payload.records=arr; if(payload.reports) payload.reports=arr; if(payload.claimed_documents) payload.claimed_documents=arr; content=JSON.stringify(payload);
       arr.forEach((r:any)=>{ if(r?.id) retrieved.add(r.id); }); if(payload.document?.id && content.includes(payload.document.id)) retrieved.add(payload.document.id);
+      const txIds=[...new Set([...arr.map((r:any)=>r?.id).filter(Boolean), ...(payload.document?.id && content.includes(payload.document.id) ? [payload.document.id] : [])] as string[])];
+      const docRefs=[...new Set([...arr.map((r:any)=>r?.reference).filter(Boolean), ...(payload.document?.reference ? [payload.document.reference] : [])] as string[])];
+      steps.push({tool:name,fulfilled:true,transmitted_ids:txIds,document_refs:docRefs});
       messages.push({role:'tool',tool_call_id:tc.id,content});
     }
   }
   // Retrieval budget ended: bounded final synthesis with no tools offered.
   messages.push({role:'user',content:'Retrieval budget ended. Answer now with only the final JSON object, citing only evidence IDs already retrieved.'});
   const data=await call(messages,false); const msg=data?.choices?.[0]?.message; if(!msg) throw new Error('no final provider message'); if(msg.tool_calls?.length) throw new Error('tool calls not allowed in final synthesis');
-  return finish(msg,retrieved,toolsUsed,requests,usage,responseModel);
+  return finish(msg,retrieved,toolsUsed,requests,usage,responseModel,steps);
 }
-function finish(msg:any,retrieved:Set<string>,toolsUsed:string[],requests:number,usage:ProviderUsage,responseModel:string|null):ProviderResult{
+function finish(msg:any,retrieved:Set<string>,toolsUsed:string[],requests:number,usage:ProviderUsage,responseModel:string|null,steps:TraceStep[]):ProviderResult{
   let txt=typeof msg?.content==='string'?msg.content:Array.isArray(msg?.content)?msg.content.map((p:any)=>typeof p?.text==='string'?p.text:'').join(''):''; if(!txt&&typeof msg?.reasoning_content==='string') txt=msg.reasoning_content;
   const start=txt.indexOf('{'), end=txt.lastIndexOf('}');
   if(start<0||end<start) throw new Error(`malformed final output (len=${txt.length})`);
   const v=validateInvestigation(JSON.parse(txt.slice(start,end+1)),retrieved);
   if(!v.ok) throw new Error(v.error);
-  return {investigation:v.data,toolsUsed,retrievedIds:[...retrieved],providerRequests:requests,usage,responseModel};
+  return {investigation:v.data,toolsUsed,retrievedIds:[...retrieved],providerRequests:requests,usage,responseModel,steps};
 }
 export const SIM_VERSION='sim-v3';

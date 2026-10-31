@@ -75,6 +75,12 @@ label{font-size:.9rem;font-weight:550;color:var(--ink)}
 .cmpwrap{overflow-x:auto}.cmp{border-collapse:collapse;width:100%;font-size:.92rem}.cmp th,.cmp td{border:1px solid var(--line);padding:.45rem .6rem;text-align:left;vertical-align:top;word-break:break-word}.cmp thead th{background:var(--wash)}
 details.dev{margin-top:1rem;border:1px dashed #c9ccd1;border-radius:var(--radius);padding:.7rem 1rem;background:var(--wash)}
 details.dev pre{overflow:auto;font-size:.8rem}
+.docgrid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem 1.5rem;margin:.6rem 0}
+.docgrid dt{font-size:.8rem;font-weight:650;color:var(--mut)}
+.docgrid dd{margin:.1rem 0 0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86rem;word-break:break-all;overflow-wrap:anywhere}
+.tracesteps{margin:.5rem 0;padding-left:1.2rem}
+.tracesteps li{margin:.4rem 0;word-break:break-word;overflow-wrap:anywhere}
+@media(max-width:720px){.docgrid{grid-template-columns:1fr}}
 footer.site{background:var(--ink);color:#aeb2b8;margin-top:2rem}
 footer.site .wrap{padding-top:2rem;padding-bottom:2rem;display:flex;flex-wrap:wrap;gap:1rem 3rem;justify-content:space-between}
 footer.site b{color:#fff}footer.site p{color:#aeb2b8;font-size:.85rem;max-width:52ch;margin:0}
